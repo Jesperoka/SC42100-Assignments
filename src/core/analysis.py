@@ -172,7 +172,7 @@ def optimize_discrete_feedback(x0: Mat,
 
 # ------------------------ Fitness functions -------------
 
-def max_stable_tau(h: float, A: Mat, B: Mat, K_shape: tuple, K: Mat,
+def max_stable_tau(h: float, A: Mat, B: Mat, K_shape: tuple, K: Mat, # TODO: pass diagonalized A as arguments
                        matrix_creator_function: fn      = lambda *args: Zeros2x2,
                        stability_checker_function: fn   = lambda x: False,
                        tau_range_function: fn           = lambda _h: (0.0, _h)):
@@ -197,9 +197,42 @@ def max_stable_tau(h: float, A: Mat, B: Mat, K_shape: tuple, K: Mat,
 
     return -tau_max_stable # minimizing
 
-def max_stable_h_n():
-    pass
 
+def max_stable_h_n(h_n_min: float, h_n_max: float, h_steps: int, A: Mat, B: Mat, K_shape: tuple, K: Mat,
+                   matrix_creator_function: fn      = lambda *args: Zeros2x2,
+                   stability_checker_function: fn   = lambda *args: False,
+                   include_one: bool = True,
+                   include_two: bool = True):
+
+    K = reshape(K, K_shape) 
+    A_inv = inv(A)
+    P, D, P_inv = diagonalize_if_easy(A)
+
+    h_n_max_stable: float = 0.0
+    found_max: bool = False 
+
+    for h_n in linspace(h_n_min, h_n_max, h_steps):
+
+        h1: float = 0.5*h_n
+        h2: float = 1.5*h_n
+        tau1: float = 0.5*h1
+        tau2: float = 0.5*h2
+
+        stable1 = stability_checker_function(matrix_creator_function(tau1, h1, A, B, K, A_inv, P, D, P_inv)) if include_one else True 
+        stable2 = stability_checker_function(matrix_creator_function(tau2, h2, A, B, K, A_inv, P, D, P_inv)) if include_two else True 
+
+        if stable1 and stable2: h_n_max_stable = -copy(h_n) # negate because minimizing
+
+        # note that this assumes there are no stable points after the smallest unstable h_n value, which I checked and it happens to be true, but might not have been.
+        else: found_max = True; break # using this assumption greatly speeds up function evaluation, allowing for more steps/granularity  
+
+    # Increase the h_n range and continue checking
+    if (not found_max): 
+        h_n_max_stable = max_stable_h_n(h_n_max, h_n_max + (h_n_max - h_n_min), h_steps, A, B, K, A_inv, P, D, P_inv,
+                                        matrix_creator_function=matrix_creator_function,
+                                        stability_checker_function=stability_checker_function)
+
+    return h_n_max_stable # minimizing
 
 
 
@@ -213,6 +246,16 @@ def display_h_tau_results(h_points, tau_points, title: str):
     figure.gca().set_xlabel("$h$ [time]")
     figure.gca().set_ylabel("$\\tau$ [time]")
     figure.suptitle(title)
-    figure.legend()
+    figure.legend(loc="upper right", bbox_to_anchor=(1, 0.88))
     show()
 
+def display_multiple_h_tau_results(list_of_tuples_of_points, labels: list[str], title: str):
+    assert len(list_of_tuples_of_points) == len(labels)
+    for ((h_points, tau_points), label) in zip(list_of_tuples_of_points, labels):
+        scatter(h_points, tau_points, label=label, alpha=0.5)
+    figure = gcf()
+    figure.gca().set_xlabel("$h$ [time]")
+    figure.gca().set_ylabel("$\\tau$ [time]")
+    figure.suptitle(title)
+    figure.legend(loc="upper right", bbox_to_anchor=(1, 0.88))
+    show()

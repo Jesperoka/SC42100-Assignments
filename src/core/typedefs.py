@@ -12,7 +12,7 @@ Mat         = partial(array , dtype=number_type)
 BlkMat      = block
 
 @jit(nopython=True)
-def BlkMat2D(list_of_row_of_matrices: list[tuple[ndarray]]):
+def BlkMat2D(list_of_row_of_matrices: list[tuple[ndarray]]): # TODO: change to tuple of tuples just to remove annoying deprecation warning
     block_matrix = concatenate(list_of_row_of_matrices[0], axis=1)
     for row_of_matrices in list_of_row_of_matrices[1:]:
         matrix_row = concatenate(row_of_matrices, axis=1)
