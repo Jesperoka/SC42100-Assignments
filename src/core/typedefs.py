@@ -6,7 +6,7 @@ from functools import partial
 from numba import jit, typeof
 
 # Type aliases
-number_type = csingle
+number_type = float64 
 fn          = Callable
 Mat         = partial(array , dtype=number_type)
 BlkMat      = block
